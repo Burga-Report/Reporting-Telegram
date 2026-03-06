@@ -28,9 +28,9 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 OWNER_ID = 7777471529  # ganti dengan user id owner
 
-CHANNEL_USERNAME = "@jetrolet"
+CHANNEL_USERNAME = "jetrolet"
 
-SUPPORT_USERNAME = "@burgaa"
+SUPPORT_USERNAME = "burgaa"
 
 # 20 EMAIL PENERIMA
 EMAILS = [
