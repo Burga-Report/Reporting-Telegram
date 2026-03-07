@@ -3,7 +3,7 @@ import re
 import sqlite3
 import logging
 from datetime import datetime, timedelta
-from urllib.parse import quote
+from urllib.parse import urlencode
 
 from telegram import (
     Update,
@@ -26,28 +26,18 @@ logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-OWNER_ID = 7777471529  # ganti
-CHANNEL_USERNAME = "jetrolet"
-SUPPORT_USERNAME = "burgaa"
+OWNER_ID = 7777471529  # GANTI DENGAN ID OWNER
+CHANNEL_USERNAME = "jetrolet"  # tanpa @
+SUPPORT_USERNAME = "burgaa"    # tanpa @
 
 REPORT_EMAIL = "abuse@telegram.org"
 
 COOLDOWN_MINUTES = 5
 
 EMAIL_SUBJECT = "Impersonation and Fraudulent Activity Using the Name of Group-IB"
-
-EMAIL_BODY = """
-Hello Telegram Support,
-I would like to report a Telegram account that appears to be impersonating and misusing the name of Group-IB, a well-known cybersecurity company. The reported account is using the company’s name and identity in a misleading manner that strongly suggests an attempt to deceive Telegram users.
-
-Target Username : {username}
-
-This account appears to be engaging in suspicious and potentially fraudulent activity by presenting itself as affiliated with or representing Group-IB, which may mislead users into believing the account is legitimate. Such impersonation creates a serious risk of scams, financial fraud, and abuse of trust among Telegram users.
-Impersonating a recognized cybersecurity company is a significant concern, as it can damage the reputation of the organization and may lead unsuspecting users to disclose personal information, send money, or interact with a fraudulent service under false pretenses.
-For the safety of the Telegram community, this account should be carefully reviewed by the moderation team. If the violation is confirmed, appropriate action should be taken in accordance with Telegram policies. At minimum, it would be helpful if the account could be clearly marked with a warning label (such as a fake account / scam account indicator) on the profile or username, so that users are aware of the potential risk.
-This report is submitted in good faith to help protect Telegram users from impersonation and possible fraud.
-Thank you for reviewing this matter and for helping maintain the safety and integrity of the Telegram platform.
-"""
+EMAIL_BODY = "I am reporting a Telegram account that is impersonating Group-IB and using the company’s name for suspected scam activities.
+This is a clear case of impersonation and fraud. Please review this account and take appropriate action to protect users.
+Thank you.: {username}"
 
 # ================= DATABASE =================
 
@@ -241,7 +231,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if not check_cooldown(user.id):
-            await query.message.reply_text("⏳ Anda harus menunggu 5 menit sebelum laporan berikutnya.")
+            await query.message.reply_text("⏳ Tunggu 5 menit sebelum laporan berikutnya.")
             return
 
         set_state(user.id, "WAIT_USERNAME")
@@ -251,6 +241,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def username_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+
     if get_state(user.id) != "WAIT_USERNAME":
         return
 
@@ -263,9 +254,12 @@ async def username_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     clear_state(user.id)
     update_cooldown(user.id)
 
-    subject = quote(EMAIL_SUBJECT)
-    body = quote(EMAIL_BODY.format(username=text))
-    mailto = f"mailto:{REPORT_EMAIL}?subject={subject}&body={body}"
+    email_data = {
+        "subject": EMAIL_SUBJECT,
+        "body": EMAIL_BODY.format(username=text)
+    }
+
+    mailto = f"mailto:{REPORT_EMAIL}?" + urlencode(email_data)
 
     keyboard = [[InlineKeyboardButton("📧 Buka Email & Kirim", url=mailto)]]
 
