@@ -26,35 +26,12 @@ logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-OWNER_ID = 7777471529  # ganti dengan user id owner
-
+OWNER_ID = 7777471529  # ganti jika perlu
 CHANNEL_USERNAME = "jetrolet"
-
 SUPPORT_USERNAME = "burgaa"
 
-# 20 EMAIL PENERIMA
-EMAILS = [
-"abuse@telegram.org",
-"support@telegram.org",
-"security@telegram.org",
-"dmca@telegram.org",
-"legal@telegram.org",
-"recover@telegram.org",
-"stopca@telegram.org",
-"privacy@telegram.org",
-"login@telegram.org",
-"moderation@telegram.org",
-"contact@telegram.org",
-"report@telegram.org",
-"help@telegram.org",
-"appeal@telegram.org",
-"admin@telegram.org",
-"fraud@telegram.org",
-"investigation@telegram.org",
-"complaint@telegram.org",
-"review@telegram.org",
-"case@telegram.org"
-]
+# gunakan 1 email agar tidak dianggap spam
+REPORT_EMAIL = "abuse@telegram.org"
 
 EMAIL_SUBJECT = "Impersonation and Fraudulent Activity Using the Name of Group-IB"
 
@@ -71,10 +48,6 @@ This report is submitted in good faith to help protect Telegram users from imper
 Thank you for reviewing this matter and for helping maintain the safety and integrity of the Telegram platform.
 """
 
-# ==============================
-# DATABASE USER ACCESS
-# ==============================
-
 approved_users = set()
 
 # ==============================
@@ -82,15 +55,12 @@ approved_users = set()
 # ==============================
 
 async def check_join(user_id, context):
-
     try:
         member = await context.bot.get_chat_member(
             chat_id=f"@{CHANNEL_USERNAME}",
             user_id=user_id
         )
-
-        return member.status in ["member","administrator","creator"]
-
+        return member.status in ["member", "administrator", "creator"]
     except:
         return False
 
@@ -99,117 +69,108 @@ async def check_join(user_id, context):
 # ==============================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     user = update.effective_user
-
     joined = await check_join(user.id, context)
 
     if not joined:
-
         keyboard = [
             [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{CHANNEL_USERNAME}")],
             [InlineKeyboardButton("✅ Saya Sudah Join", callback_data="check_join")]
         ]
 
         await update.message.reply_text(
-            "⚠️ Anda harus join channel owner terlebih dahulu untuk menggunakan bot.",
+            "⚠️ Anda wajib join channel owner terlebih dahulu.",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-
         return
 
     await send_welcome(update, context)
 
 # ==============================
-# WELCOME MESSAGE
+# WELCOME
 # ==============================
 
 async def send_welcome(update, context):
-
     user = update.effective_user
-
     premium = "Yes" if user.is_premium else "No"
 
     text = f"""
-👋 Selamat datang di Bot Laporan Telegram
+👋 Selamat datang di Bot Laporan
 
 ━━━━━━━━━━━━━━
-
 👤 Nama : {user.full_name}
-🔗 Username : @{user.username}
-🆔 User ID : {user.id}
+🔗 Username : @{user.username if user.username else '-'}
+🆔 ID : {user.id}
 ⭐ Premium : {premium}
-🌐 DC ID : {user.id % 5}
-
 ⚙️ Status : {"Owner" if user.id == OWNER_ID else "Member"}
-
 ━━━━━━━━━━━━━━
 
-📌 Cara menggunakan bot:
-
-1️⃣ Minta akses ke owner  
-2️⃣ Tunggu sampai disetujui  
-3️⃣ Kirim username target  
-4️⃣ Kirim laporan melalui email
-
+📌 Cara Pakai:
+1️⃣ Minta akses
+2️⃣ Tunggu approve
+3️⃣ Kirim username target
+4️⃣ Kirim laporan via email
 """
+
+    # ambil foto profil
+    photos = await context.bot.get_user_profile_photos(user.id)
 
     keyboard = [
         [InlineKeyboardButton("🛂 Minta Akses", callback_data="request_access")],
-        [InlineKeyboardButton("🚨 Buat Laporan", callback_data="report_menu")],
         [
             InlineKeyboardButton("📢 Channel Owner", url=f"https://t.me/{CHANNEL_USERNAME}"),
             InlineKeyboardButton("🆘 Contact Support", url=f"https://t.me/{SUPPORT_USERNAME}")
         ]
     ]
 
-    if update.message:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    if user.id in approved_users or user.id == OWNER_ID:
+        keyboard.insert(1, [InlineKeyboardButton("🚨 Buat Laporan", callback_data="report_menu")])
+
+    if photos.total_count > 0:
+        await context.bot.send_photo(
+            chat_id=user.id,
+            photo=photos.photos[0][-1].file_id,
+            caption=text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     else:
-        await update.callback_query.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
 # ==============================
 # BUTTON HANDLER
 # ==============================
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     query = update.callback_query
     user = query.from_user
     data = query.data
 
     await query.answer()
 
-    # CHECK JOIN BUTTON
     if data == "check_join":
-
         joined = await check_join(user.id, context)
-
         if joined:
             await send_welcome(update, context)
         else:
             await query.message.reply_text("❌ Anda belum join channel.")
 
-    # REQUEST ACCESS
     elif data == "request_access":
-
-        premium = "Yes" if user.is_premium else "No"
-
         text = f"""
-🔔 Permintaan Akses Baru
+🔔 Permintaan Akses
 
 👤 Nama : {user.full_name}
 🔗 Username : @{user.username}
 🆔 ID : {user.id}
-⭐ Premium : {premium}
 """
 
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user.id}"),
-                InlineKeyboardButton("❌ Deny", callback_data=f"deny_{user.id}")
-            ]
-        ]
+        keyboard = [[
+            InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user.id}"),
+            InlineKeyboardButton("❌ Deny", callback_data=f"deny_{user.id}")
+        ]]
 
         await context.bot.send_message(
             OWNER_ID,
@@ -217,44 +178,34 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-        await query.message.reply_text("📨 Permintaan akses telah dikirim ke owner.")
+        await query.message.reply_text("📨 Permintaan dikirim ke owner.")
 
-    # REPORT MENU
     elif data == "report_menu":
-
         if user.id not in approved_users and user.id != OWNER_ID:
-
-            await query.message.reply_text(
-                "⛔ Anda belum mendapatkan akses dari owner."
-            )
+            await query.message.reply_text("⛔ Anda belum di-approve.")
             return
 
         await query.message.reply_text(
-            "📨 Kirim username target untuk dilaporkan\n\nContoh:\n@username"
+            "📨 Kirim username target\n\nContoh:\n@targetusername"
         )
 
-    # APPROVE USER
     elif data.startswith("approve_"):
-
         uid = int(data.split("_")[1])
-
         approved_users.add(uid)
 
         await context.bot.send_message(
             uid,
-            "✅ Permintaan akses Anda telah disetujui.\n\nSekarang Anda bisa membuat laporan."
+            "✅ Akses disetujui!\nSekarang Anda bisa membuat laporan."
         )
 
-        await query.message.edit_text("User berhasil di approve.")
+        await query.message.edit_text("User berhasil di-approve.")
 
-    # DENY USER
     elif data.startswith("deny_"):
-
         uid = int(data.split("_")[1])
 
         await context.bot.send_message(
             uid,
-            "❌ Permintaan akses Anda ditolak oleh owner."
+            "❌ Permintaan akses ditolak."
         )
 
         await query.message.edit_text("User ditolak.")
@@ -264,7 +215,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==============================
 
 async def username_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     user = update.effective_user
 
     if user.id not in approved_users and user.id != OWNER_ID:
@@ -272,35 +222,27 @@ async def username_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.strip()
 
-    if not text.startswith("@"):
-        await update.message.reply_text("⚠️ Kirim username yang valid.\nContoh: @target")
+    # regex username telegram valid
+    if not re.match(r"^@[A-Za-z0-9_]{5,32}$", text):
+        await update.message.reply_text(
+            "⚠️ Format username tidak valid.\nContoh: @username"
+        )
         return
 
-    username = text.replace("@","")
+    username = text[1:]
 
-    try:
-
-        await context.bot.get_chat(username)
-
-    except:
-
-        await update.message.reply_text("❌ Username tidak ditemukan di Telegram.")
-        return
-
-    recipients = ",".join(EMAILS)
-
+    # tidak pakai get_chat supaya tidak false error
     subject = quote(EMAIL_SUBJECT)
-
     body = quote(EMAIL_BODY.format(username="@" + username))
 
-    mailto = f"mailto:{recipients}?subject={subject}&body={body}"
+    mailto = f"mailto:{REPORT_EMAIL}?subject={subject}&body={body}"
 
     keyboard = [
-        [InlineKeyboardButton("📧 Kirim Laporan via Email", url=mailto)]
+        [InlineKeyboardButton("📧 Buka Email & Kirim", url=mailto)]
     ]
 
     await update.message.reply_text(
-        "✅ Username ditemukan.\n\nKlik tombol dibawah untuk membuka aplikasi email dan kirim laporan.",
+        "✅ Username valid.\nKlik tombol dibawah untuk membuka aplikasi email.",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -309,17 +251,13 @@ async def username_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==============================
 
 def main():
-
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-
     app.add_handler(CallbackQueryHandler(button))
-
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, username_handler))
 
     print("BOT RUNNING...")
-
     app.run_polling()
 
 if __name__ == "__main__":
