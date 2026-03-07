@@ -3,13 +3,9 @@ import re
 import asyncio
 import sqlite3
 from datetime import datetime
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
@@ -22,8 +18,7 @@ ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS").split(",")]
 CHANNEL_LINK = os.getenv("CHANNEL_LINK")
 SUPPORT_LINK = os.getenv("SUPPORT_LINK")
 REPORT_TEMPLATE = os.getenv("REPORT_TEMPLATE")
-
-# ================= DATABASE =================
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 conn = sqlite3.connect("database.db", check_same_thread=False)
 cursor = conn.cursor()
@@ -58,53 +53,33 @@ def add_report(user_id):
     cursor.execute("UPDATE users SET total_reports=total_reports+1 WHERE user_id=?", (user_id,))
     conn.commit()
 
-# ================= START =================
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     add_user(user.id)
 
     msg = await update.message.reply_text("⚡ Initializing secure system...")
-
-    loading = [
-        "🔐 Authenticating identity...",
-        "🛡 Running security protocol...",
-        "📡 Syncing encrypted database...",
-        "🧠 Analyzing metadata...",
-        "🚀 Preparing dashboard..."
-    ]
-
-    for step in loading:
-        await asyncio.sleep(0.8)
-        await msg.edit_text(step)
-
     await asyncio.sleep(1)
 
     data = get_user(user.id)
-    premium = "💎 Premium User" if user.is_premium else "🆓 Standard User"
+    premium = "💎 Premium" if user.is_premium else "🆓 Standard"
     username = f"@{user.username}" if user.username else "Not Set"
     role = "👑 Owner" if user.id in ADMIN_IDS else "👤 Member"
 
     text = (
-        f"╔═══『 🔐 Secure Access Panel 』═══╗\n\n"
-        f"👤 Name        : {user.full_name}\n"
-        f"🆔 User ID     : {user.id}\n"
-        f"🔗 Username    : {username}\n"
+        f"🔐 Secure Access Panel\n\n"
+        f"👤 {user.full_name}\n"
+        f"🆔 {user.id}\n"
+        f"🔗 {username}\n"
         f"{premium}\n"
         f"{role}\n"
-        f"📅 First Use   : {data[1]}\n"
-        f"📊 Total Reports : {data[3]}\n\n"
-        f"⚠️ To create report, request access first.\n"
-        f"╚══════════════════════════╝"
+        f"📅 First Use: {data[1]}\n"
+        f"📊 Reports: {data[3]}\n\n"
+        f"⚠️ Request access to create report."
     )
 
     if data[2] == 0:
         keyboard = [
-            [InlineKeyboardButton("📨 Request Access", callback_data="request")],
-            [
-                InlineKeyboardButton("📢 Channel", url=CHANNEL_LINK),
-                InlineKeyboardButton("☎️ Support", url=SUPPORT_LINK),
-            ],
+            [InlineKeyboardButton("📨 Request Access", callback_data="request")]
         ]
     else:
         keyboard = [
@@ -113,37 +88,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await msg.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-# ================= REQUEST ACCESS =================
-
 async def request_access(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
     await query.answer()
 
-    data = get_user(user.id)
-
-    info = (
-        f"📥 Access Request\n\n"
-        f"👤 Name: {user.full_name}\n"
-        f"🆔 ID: {user.id}\n"
-        f"🔗 Username: @{user.username}\n"
-        f"📅 First Use: {data[1]}"
-    )
-
     for admin in ADMIN_IDS:
         await context.bot.send_message(
             admin,
-            info,
+            f"Access Request\nUser: {user.full_name}\nID: {user.id}",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user.id}")]
             ])
         )
 
-    await query.edit_message_text(
-        "⏳ Request sent.\nPlease wait admin approval."
-    )
-
-# ================= APPROVE =================
+    await query.edit_message_text("⏳ Waiting admin approval.")
 
 async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -154,25 +113,18 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_message(
         user_id,
-        "✅ Access Approved!\n\nYou can now create report.",
+        "✅ Access Approved!",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("📝 Create Report", callback_data="report")]
         ])
     )
 
-    await query.edit_message_text("✅ User approved.")
-
-# ================= REPORT BUTTON =================
+    await query.edit_message_text("Approved.")
 
 async def report_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
-    await query.edit_message_text(
-        "📌 Enter username to report.\nExample: @username"
-    )
-
-# ================= HANDLE REPORT =================
+    await query.edit_message_text("Send username like: @username")
 
 async def handle_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -184,29 +136,23 @@ async def handle_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = update.message.text.strip()
 
     if not re.match(r"^@[A-Za-z0-9_]{5,32}$", target):
-        await update.message.reply_text("⚠️ Invalid username format.")
+        await update.message.reply_text("Invalid format.")
         return
 
     final_report = REPORT_TEMPLATE.replace("{target}", target)
-
     add_report(user.id)
 
     for admin in ADMIN_IDS:
-        await context.bot.send_message(
-            admin,
-            f"📩 New Report\n\n{final_report}\n\nReporter ID: {user.id}"
-        )
+        await context.bot.send_message(admin, final_report)
 
     total = get_user(user.id)[3]
 
     await update.message.reply_text(
-        f"✅ Report Sent Successfully\n📊 Your Total Reports: {total}"
+        f"✅ Report sent.\nTotal Reports: {total}"
     )
 
-# ================= MAIN =================
-
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(request_access, pattern="request"))
@@ -214,7 +160,11 @@ def main():
     app.add_handler(CallbackQueryHandler(report_button, pattern="report"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_report))
 
-    app.run_polling()
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 8080)),
+        webhook_url=WEBHOOK_URL
+    )
 
 if __name__ == "__main__":
     main()
