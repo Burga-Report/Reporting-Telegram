@@ -35,7 +35,7 @@ REPORT_EMAIL = "abuse@telegram.org"
 COOLDOWN_MINUTES = 5
 
 EMAIL_SUBJECT = "Impersonation and Fraudulent Activity Using the Name of Group-IB"
-EMAIL_BODY = "I am reporting a Telegram account that is impersonating Group-IB and using the company’s name for suspected scam activities.
+EMAIL_BODY = "I am reporting a Telegram account that is impersonating Group-IB and using the company name for suspected scam activities.
 This is a clear case of impersonation and fraud. Please review this account and take appropriate action to protect users.
 Thank you.: {username}"
 
