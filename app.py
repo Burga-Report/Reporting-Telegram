@@ -47,9 +47,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     mailto_link = f"mailto:{REPORT_EMAIL}?subject={urllib.parse.quote(REPORT_SUBJECT)}&body={body}"
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📩 Buka Email & Kirim", url=mailto_link)]
-    ])
+    await update.message.reply_text(
+    f"Klik link berikut untuk membuka email:\n\n{mailto_link}"
+    )
 
     await update.message.reply_text(
         "Klik tombol di bawah untuk membuka aplikasi email.",
