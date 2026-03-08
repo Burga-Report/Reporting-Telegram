@@ -55,13 +55,20 @@ conn.commit()
 
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🛍️ Titip Barang", callback_data="menu_titip")]
+        [InlineKeyboardButton("🛍️ Titip Barang", callback_data="menu_titip")],
+        [
+            InlineKeyboardButton("👤 Kontak Admin", url=f"https://t.me/{ADMIN_USERNAME}"),
+            InlineKeyboardButton("📢 Cek Produk", url=OWNER_CHANNEL)
+        ]
     ])
 
     await update.message.reply_text(
         "🛍️ *Jasa Titip Online*\n"
-        "Ultimate Stable Escrow System 🔒",
+        "Ultimate Stable Escrow System 🔒\n\n"
+        "🤝 Titip & transaksi aman bersama admin.\n"
+        "❓ Tidak paham? Hubungi admin.",
         parse_mode="Markdown",
         reply_markup=keyboard
     )
