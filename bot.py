@@ -13,6 +13,7 @@ asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 
 ADMIN_FEE = 2000
 AUTO_CANCEL_SECONDS = 1800
